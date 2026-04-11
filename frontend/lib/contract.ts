@@ -12,7 +12,7 @@
 
 // ── Contract address ──────────────────────────────────────────────────────────
 export const CONTRACT_ADDRESS =
-  (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`) ??
+  (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS?.trim() as `0x${string}`) ??
   "0x0000000000000000000000000000000000000000";
 
 export const CHAIN_ID = 10143 as const; // Monad Testnet
