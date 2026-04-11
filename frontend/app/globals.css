@@ -1,0 +1,221 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS custom properties — Notion-inspired design system ─────────────────────
+   These map to the Tailwind config tokens. Defining them as CSS vars lets
+   non-Tailwind code (e.g. RainbowKit overrides, inline styles) use them too.
+   ──────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --color-background:    #0F0F0F;
+  --color-surface:       #1A1A1A;
+  --color-border:        #2D2D2D;
+  --color-hover:         #2D2D2D;
+
+  /* Text */
+  --color-text-primary:  #FFFFFF;
+  --color-text-secondary:#9B9B9B;
+
+  /* Brand */
+  --color-accent:        #008751;  /* Nigerian green */
+  --color-accent-hover:  #00A862;
+
+  /* Semantic */
+  --color-danger:        #E03E3E;
+  --color-warning:       #DFAB01;
+  --color-success:       #0F7B6C;
+
+  /* Typography */
+  --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
+
+  /* Transitions — Notion uses very fast 150ms transitions */
+  --transition-fast: 150ms ease;
+}
+
+/* ── Base resets ────────────────────────────────────────────────────────────── */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    min-height: 100dvh;
+  }
+
+  /* Scrollbar — Notion-style: thin, dark */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-background);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3D3D3D;
+  }
+
+  /* Focus ring — green accent, Notion-style (not the default blue) */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Remove focus ring on mouse click (only show on keyboard nav) */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Selection highlight */
+  ::selection {
+    background-color: rgba(0, 135, 81, 0.3);
+    color: var(--color-text-primary);
+  }
+}
+
+/* ── Reusable component classes ─────────────────────────────────────────────── */
+@layer components {
+
+  /* Notion-style card */
+  .card {
+    @apply bg-[#1A1A1A] border border-[#2D2D2D] rounded-[8px];
+  }
+
+  /* Notion-style input */
+  .input {
+    @apply w-full bg-[#1A1A1A] border border-[#2D2D2D] rounded-[6px]
+           px-3 py-2 text-white placeholder-[#9B9B9B]
+           focus:outline-none focus:border-[#008751] focus:ring-1 focus:ring-[#008751]
+           transition-colors duration-150
+           text-sm;
+  }
+
+  /* Input error state */
+  .input-error {
+    @apply border-[#E03E3E] focus:border-[#E03E3E] focus:ring-[#E03E3E];
+  }
+
+  /* Primary button — solid green */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-[#008751] hover:bg-[#00A862] active:bg-[#007040]
+           text-white font-medium text-sm
+           px-4 py-2 rounded-[6px]
+           transition-colors duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#008751]
+           select-none;
+  }
+
+  /* Secondary button — ghost, bordered */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-transparent hover:bg-[#2D2D2D] active:bg-[#3D3D3D]
+           text-[#9B9B9B] hover:text-white
+           border border-[#2D2D2D] hover:border-[#3D3D3D]
+           font-medium text-sm
+           px-4 py-2 rounded-[6px]
+           transition-colors duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed
+           select-none;
+  }
+
+  /* Danger button — red */
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2
+           bg-transparent hover:bg-[#E03E3E]/10 active:bg-[#E03E3E]/20
+           text-[#E03E3E]
+           border border-[#E03E3E]/30 hover:border-[#E03E3E]/60
+           font-medium text-sm
+           px-4 py-2 rounded-[6px]
+           transition-colors duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed
+           select-none;
+  }
+
+  /* Icon button — square, for icon-only actions */
+  .btn-icon {
+    @apply inline-flex items-center justify-center
+           w-8 h-8 rounded-[6px]
+           bg-transparent hover:bg-[#2D2D2D]
+           text-[#9B9B9B] hover:text-white
+           transition-colors duration-150
+           select-none cursor-pointer;
+  }
+
+  /* Divider */
+  .divider {
+    @apply border-t border-[#2D2D2D];
+  }
+
+  /* Muted label — like Notion's section headers */
+  .label {
+    @apply text-xs font-medium text-[#9B9B9B] uppercase tracking-wider;
+  }
+
+  /* Status dot */
+  .status-dot {
+    @apply inline-block w-2 h-2 rounded-full;
+  }
+  .status-dot-active   { @apply bg-[#008751]; }
+  .status-dot-inactive { @apply bg-[#9B9B9B]; }
+  .status-dot-warning  { @apply bg-[#DFAB01]; }
+  .status-dot-danger   { @apply bg-[#E03E3E]; }
+
+  /* Notion-style row hover */
+  .row-hover {
+    @apply transition-colors duration-150 hover:bg-[#2D2D2D] rounded-[6px];
+  }
+}
+
+/* ── Utilities ───────────────────────────────────────────────────────────────── */
+@layer utilities {
+  /* Monad speed feel — instant feedback pulse for confirmed txns */
+  .tx-confirmed {
+    animation: txPulse 0.4s ease-out;
+  }
+
+  @keyframes txPulse {
+    0%   { box-shadow: 0 0 0 0   rgba(0, 135, 81, 0.5); }
+    70%  { box-shadow: 0 0 0 8px rgba(0, 135, 81, 0);   }
+    100% { box-shadow: 0 0 0 0   rgba(0, 135, 81, 0);   }
+  }
+
+  /* Truncate long wallet addresses */
+  .address {
+    @apply font-mono text-sm text-[#9B9B9B];
+  }
+
+  /* Game max-width container */
+  .game-container {
+    @apply w-full max-w-[720px] mx-auto px-4;
+  }
+
+  /* Full-width dashboard container */
+  .dashboard-container {
+    @apply w-full max-w-[1200px] mx-auto px-6;
+  }
+}
+
+/* ── RainbowKit modal font override ─────────────────────────────────────────── */
+/* RainbowKit uses its own font by default. Override to use Inter. */
+[data-rk] {
+  font-family: var(--font-sans) !important;
+}
