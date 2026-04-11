@@ -290,44 +290,15 @@ export default function LobbyPage() {
           </div>
         </div>
 
-        {/* ── Player count progress bar ────────────────────────────────────── */}
-        <div className="card p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <UserGroupIcon size={16} className="text-[#9B9B9B]" />
-              <span className="text-sm text-[#9B9B9B]">Players</span>
-            </div>
-            <span className="text-sm font-medium text-white">
-              {playerCount}
-              <span className="text-[#9B9B9B]">/2</span>
-            </span>
+        {/* ── Player count info ────────────────────────────────────────────── */}
+        <div className="card p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <UserGroupIcon size={16} className="text-[#9B9B9B]" />
+            <span className="text-sm text-[#9B9B9B]">Up to 2 players</span>
           </div>
-
-          {/* Segmented progress bar — 2 blocks */}
-          <div className="flex gap-1">
-            {Array.from({ length: 2 }, (_, i) => (
-              <motion.div
-                key={i}
-                className={cn(
-                  "h-1.5 flex-1 rounded-full transition-colors duration-300",
-                  i < playerCount ? "bg-[#008751]" : "bg-[#2D2D2D]"
-                )}
-                initial={false}
-                animate={{ backgroundColor: i < playerCount ? "#008751" : "#2D2D2D" }}
-                transition={{ duration: 0.2, delay: i < playerCount ? 0 : 0 }}
-              />
-            ))}
-          </div>
-
-          {isFull ? (
-            <p className="text-xs text-[#008751]">
-              Both players are in. Waiting for admin to start…
-            </p>
-          ) : (
-            <p className="text-xs text-[#9B9B9B]">
-              Need {2 - playerCount} more player{2 - playerCount !== 1 ? "s" : ""}
-            </p>
-          )}
+          <p className="text-xs text-[#9B9B9B]">
+            Players don't need to register here — they'll be added automatically when they submit answers in the round.
+          </p>
         </div>
 
         {/* ── Recent join toast ─────────────────────────────────────────────── */}
@@ -375,7 +346,7 @@ export default function LobbyPage() {
             <div className="space-y-2">
               <button
                 onClick={handleStartRound}
-                disabled={!isFull || startRound.isPending || startRound.isConfirming}
+                disabled={startRound.isPending || startRound.isConfirming}
                 className="btn-primary w-full"
               >
                 {startRound.isPending ? (
@@ -397,12 +368,6 @@ export default function LobbyPage() {
                 )}
               </button>
 
-              {!isFull && (
-                <p className="text-xs text-[#9B9B9B] text-center">
-                  Waiting for {2 - playerCount} more player{2 - playerCount !== 1 ? "s" : ""}
-                </p>
-              )}
-
               {startRound.error && (
                 <p className="text-xs text-[#E03E3E]">{startRound.error}</p>
               )}
@@ -413,7 +378,7 @@ export default function LobbyPage() {
         {/* ── Player grid ──────────────────────────────────────────────────── */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="label">Players ({playerCount}/2)</h2>
+            <h2 className="label">Players {playerCount > 0 ? `(${playerCount}/2)` : ""}</h2>
             {isAdmin && (
               <span className="text-xs text-[#9B9B9B] flex items-center gap-1">
                 <Award01Icon size={12} />

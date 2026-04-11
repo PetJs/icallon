@@ -223,7 +223,9 @@ export default function GamePage() {
   useOnAnswerCommitted(gameId, useCallback(() => {
     setLiveCommitCount((n) => n + 1);
     refetchPlayers();
-  }, [refetchPlayers]));
+    refetchGame();   // playerCount grows as players auto-register
+    refetchRound();  // activePlayerCount also updates
+  }, [refetchPlayers, refetchGame, refetchRound]));
 
   useOnAnswerRevealed(gameId, useCallback(() => {
     setLiveRevealCount((n) => n + 1);
@@ -265,10 +267,13 @@ export default function GamePage() {
   }, [game, gameId, router]);
 
   // ── Active player count ────────────────────────────────────────────────────
-  const activeCount = useMemo(
-    () => playerList.filter((p) => p.isActive).length,
-    [playerList]
-  );
+  // Fall back to roundData.activePlayerCount while playerList is still empty
+  // (players auto-register on commitAnswers, so playerCount starts at 0)
+  const activeCount = useMemo(() => {
+    const fromList = playerList.filter((p) => p.isActive).length;
+    if (fromList > 0) return fromList;
+    return roundData?.activePlayerCount ?? 0;
+  }, [playerList, roundData]);
 
   // ── Admin: can advance phase ───────────────────────────────────────────────
   const canOpenReveal   = myStatus.isAdmin && phase.state === GameState.COMMIT   && phase.deadlinePassed;
