@@ -208,6 +208,22 @@ export default function GamePage() {
     }
   }, [game?.state, game?.currentRound, letter]);
 
+  // ── Auto-reveal: when phase enters REVEAL and player has committed, reveal immediately ──
+  const hasAutoRevealedRef = useRef(false);
+  useEffect(() => {
+    if (
+      phase.state !== GameState.REVEAL ||
+      !myStatus.hasCommitted ||
+      myStatus.hasRevealed ||
+      revealAnswers.isPending ||
+      revealAnswers.isConfirming ||
+      hasAutoRevealedRef.current
+    ) return;
+    hasAutoRevealedRef.current = true;
+    revealAnswers.execute();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase.state, myStatus.hasCommitted, myStatus.hasRevealed]);
+
   // ── Live commit / reveal counts ────────────────────────────────────────────
   const [liveCommitCount, setLiveCommitCount] = useState(0);
   const [liveRevealCount, setLiveRevealCount] = useState(0);

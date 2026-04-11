@@ -15,7 +15,7 @@
 
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { encodeAbiParameters, keccak256, parseAbiParameters } from "viem";
+import { encodePacked, keccak256 } from "viem";
 import { CONTRACT_ERRORS, type Category } from "./contract";
 
 // ── cn() — Tailwind class merge ───────────────────────────────────────────────
@@ -70,62 +70,12 @@ export function hashAnswers(
   answers: [string, string, string, string, string],
   salt: `0x${string}`
 ): `0x${string}` {
-  // Mirror: keccak256(abi.encodePacked(a0, a1, a2, a3, a4, salt))
-  // encodePacked with mixed types (string, bytes32) requires manual byte concat
-  const encoded = encodeAbiParameters(
-    parseAbiParameters("string, string, string, string, string, bytes32"),
+  // Mirror Solidity: keccak256(abi.encodePacked(a0, a1, a2, a3, a4, salt))
+  // viem's encodePacked exactly mirrors Solidity's abi.encodePacked
+  return keccak256(encodePacked(
+    ["string", "string", "string", "string", "string", "bytes32"],
     [answers[0], answers[1], answers[2], answers[3], answers[4], salt]
-  );
-
-  // encodePacked: strip the ABI padding — use raw concat instead
-  // viem's keccak256 with packed encoding:
-  const packed = packStringsWithSalt(answers, salt);
-  return keccak256(packed);
-}
-
-/**
- * Manual encodePacked for [string × 5, bytes32].
- * Solidity's abi.encodePacked(strings...) concatenates raw UTF-8 bytes with
- * no length prefix. We replicate this exactly so the hash verifies on-chain.
- */
-function packStringsWithSalt(
-  answers: [string, string, string, string, string],
-  salt: `0x${string}`
-): `0x${string}` {
-  // Encode each string as raw UTF-8 bytes (no length prefix — packed encoding)
-  const encoder = new TextEncoder();
-  const parts: Uint8Array[] = answers.map((a) => encoder.encode(a));
-
-  // Decode the 32-byte salt from hex
-  const saltBytes = hexToBytes(salt);
-
-  // Total length: sum of all string byte lengths + 32 bytes for salt
-  const totalLen = parts.reduce((acc, p) => acc + p.length, 0) + 32;
-  const result = new Uint8Array(totalLen);
-
-  let offset = 0;
-  for (const part of parts) {
-    result.set(part, offset);
-    offset += part.length;
-  }
-  result.set(saltBytes, offset);
-
-  return bytesToHex(result);
-}
-
-function hexToBytes(hex: `0x${string}`): Uint8Array {
-  const h = hex.slice(2); // strip 0x
-  const bytes = new Uint8Array(h.length / 2);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
-}
-
-function bytesToHex(bytes: Uint8Array): `0x${string}` {
-  return `0x${Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")}`;
+  ));
 }
 
 // ── Salt persistence (sessionStorage) ────────────────────────────────────────
