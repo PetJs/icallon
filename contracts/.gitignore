@@ -1,0 +1,13 @@
+# Foundry build artifacts
+out/
+cache/
+
+# Broadcast receipts (may contain tx hashes but no secrets — optional to commit)
+# Remove this line if you want to track deployment addresses
+broadcast/
+
+# Secrets
+.env
+
+# Foundry dependencies (installed via forge install / git submodules)
+# lib/ is intentionally NOT ignored — forge-std is committed as a submodule
