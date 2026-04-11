@@ -502,7 +502,7 @@ export function useGameEvents(gameId: bigint | undefined): GameEvents {
     addNotif({
       type:    "info",
       title:   "Player joined",
-      message: `${formatAddress(event.player)} joined (${event.playerCount}/16)`,
+      message: `${formatAddress(event.player)} joined (${event.playerCount}/2)`,
     });
   }, [addNotif]));
 

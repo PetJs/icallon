@@ -64,7 +64,7 @@ contract ICallOn {
     //                         CONSTANTS
     // ═══════════════════════════════════════════════════════════
 
-    uint8  public constant MAX_PLAYERS      = 16;
+    uint8  public constant MAX_PLAYERS      = 2;   // NOTE: set to 2 for testing, change to 16 for production
     uint8  public constant NUM_CATEGORIES   = 5;   // Person, Place, Thing, Animal, Food
     uint256 public constant COMMIT_DURATION = 35;  // seconds
     uint256 public constant REVEAL_DURATION = 60;  // seconds — enough for slow connections

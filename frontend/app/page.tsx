@@ -70,7 +70,7 @@ function RecentGameRow({
           {formatAddress(admin)} · {formatMON(prizePool)}
         </span>
         <span className="text-sm text-[#9B9B9B]">
-          {playerCount}/16
+          {playerCount}/2
         </span>
         <ArrowRight01Icon
           size={16}
@@ -234,7 +234,7 @@ export default function HomePage() {
           {/* Stats row */}
           <div className="flex flex-wrap gap-6 pt-2">
             {[
-              { icon: <UserGroupIcon size={16} />, label: "16 players" },
+              { icon: <UserGroupIcon size={16} />, label: "2 players" },
               { icon: <Clock01Icon   size={16} />, label: "35s per round" },
               { icon: <Award01Icon  size={16} />, label: "4 rounds to win" },
             ].map(({ icon, label }) => (

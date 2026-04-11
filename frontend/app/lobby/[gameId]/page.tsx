@@ -173,13 +173,13 @@ export default function LobbyPage() {
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const playerCount = game?.playerCount ?? 0;
-  const isFull      = playerCount >= 16;
+  const isFull      = playerCount >= 2;
   const isAdmin     = myStatus.isAdmin;
 
-  // Build 16-slot grid: filled + empty
+  // Build 2-slot grid: filled + empty
   const slots = useMemo(() => {
     const filled = playerList.map((p, i) => ({ address: p.addr, index: i, filled: true }));
-    const empty  = Array.from({ length: Math.max(0, 16 - filled.length) }, (_, i) => ({
+    const empty  = Array.from({ length: Math.max(0, 2 - filled.length) }, (_, i) => ({
       address:  undefined as `0x${string}` | undefined,
       index:    filled.length + i,
       filled:   false,
@@ -301,13 +301,13 @@ export default function LobbyPage() {
             </div>
             <span className="text-sm font-medium text-white">
               {playerCount}
-              <span className="text-[#9B9B9B]">/16</span>
+              <span className="text-[#9B9B9B]">/2</span>
             </span>
           </div>
 
-          {/* Segmented progress bar — 16 blocks */}
+          {/* Segmented progress bar — 2 blocks */}
           <div className="flex gap-1">
-            {Array.from({ length: 16 }, (_, i) => (
+            {Array.from({ length: 2 }, (_, i) => (
               <motion.div
                 key={i}
                 className={cn(
@@ -323,11 +323,11 @@ export default function LobbyPage() {
 
           {isFull ? (
             <p className="text-xs text-[#008751]">
-              All 16 players are in. Waiting for admin to start…
+              Both players are in. Waiting for admin to start…
             </p>
           ) : (
             <p className="text-xs text-[#9B9B9B]">
-              Need {16 - playerCount} more player{16 - playerCount !== 1 ? "s" : ""}
+              Need {2 - playerCount} more player{2 - playerCount !== 1 ? "s" : ""}
             </p>
           )}
         </div>
@@ -431,7 +431,7 @@ export default function LobbyPage() {
 
               {!isFull && (
                 <p className="text-xs text-[#9B9B9B] text-center">
-                  Waiting for {16 - playerCount} more player{16 - playerCount !== 1 ? "s" : ""}
+                  Waiting for {2 - playerCount} more player{2 - playerCount !== 1 ? "s" : ""}
                 </p>
               )}
 
@@ -445,7 +445,7 @@ export default function LobbyPage() {
         {/* ── Player grid ──────────────────────────────────────────────────── */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="label">Players ({playerCount}/16)</h2>
+            <h2 className="label">Players ({playerCount}/2)</h2>
             {isAdmin && (
               <span className="text-xs text-[#9B9B9B] flex items-center gap-1">
                 <Award01Icon size={12} />
@@ -477,7 +477,7 @@ export default function LobbyPage() {
         <section className="card divide-y divide-[#2D2D2D]">
           <div className="px-4 py-3 flex items-center justify-between">
             <span className="text-sm text-[#9B9B9B]">Tournament</span>
-            <span className="text-sm text-white">4 rounds · 16 → 1</span>
+            <span className="text-sm text-white">1 round · 2 → 1</span>
           </div>
           <div className="px-4 py-3 flex items-center justify-between">
             <span className="text-sm text-[#9B9B9B]">Answer window</span>
