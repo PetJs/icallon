@@ -376,10 +376,11 @@ export default function GamePage() {
               <CommitProgress committed={liveCommitCount} total={activeCount} />
             </div>
 
-            {/* Answer form — only if player hasn't committed yet */}
-            {myStatus.isInGame && myStatus.isActive && !myStatus.hasCommitted && (
+            {/* Answer form — for any connected player who hasn't committed yet
+                (auto-registration happens on first commitAnswers tx) */}
+            {isConnected && !myStatus.hasCommitted && (!myStatus.isInGame || myStatus.isActive) && (
               <AnimatePresence>
-                {!phase.deadlinePassed && (
+                {(!phase.deadlinePassed || commitAnswers.isPending || commitAnswers.isConfirming) && (
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -389,6 +390,7 @@ export default function GamePage() {
                       onSubmit={(answers) => commitAnswers.execute(answers)}
                       isPending={commitAnswers.isPending || commitAnswers.isConfirming}
                       error={commitAnswers.error}
+                      commitDeadline={phase.activeDeadline ? Number(phase.activeDeadline) : undefined}
                     />
                   </motion.div>
                 )}
@@ -417,7 +419,7 @@ export default function GamePage() {
             )}
 
             {/* Window closed, not committed */}
-            {phase.deadlinePassed && !myStatus.hasCommitted && myStatus.isInGame && (
+            {phase.deadlinePassed && !myStatus.hasCommitted && isConnected && (
               <div className="flex items-center gap-3 px-5 py-4 card">
                 <InformationCircleIcon size={16} className="text-[#9B9B9B] shrink-0" />
                 <p className="text-sm text-[#9B9B9B]">
@@ -694,15 +696,7 @@ export default function GamePage() {
           />
         </section>
 
-        {/* ── Not in game notice ────────────────────────────────────────────── */}
-        {isConnected && !myStatus.isInGame && (
-          <div className="flex items-center gap-3 px-4 py-3 card text-sm">
-            <InformationCircleIcon size={16} className="text-[#9B9B9B] shrink-0" />
-            <span className="text-[#9B9B9B]">
-              You're spectating. You weren't in the lobby when the game started.
-            </span>
-          </div>
-        )}
+        {/* ── Not in game notice (eliminated only) ─────────────────────────── */}
 
         {/* ── Eliminated notice ─────────────────────────────────────────────── */}
         {myStatus.isInGame && !myStatus.isActive && (

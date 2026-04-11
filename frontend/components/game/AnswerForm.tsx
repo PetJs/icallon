@@ -206,13 +206,15 @@ function InputRow({
 // ─────────────────────────────────────────────────────────────────────────────
 type AnswerFormProps = {
   /** The round letter — e.g. "M". All non-empty answers must start with this. */
-  letter:     string;
+  letter:          string;
   /** Called with [person, place, thing, animal, food] when player submits */
-  onSubmit:   (answers: [string, string, string, string, string]) => void;
+  onSubmit:        (answers: [string, string, string, string, string]) => void;
   /** True while wallet confirm or tx confirmation is pending */
-  isPending:  boolean;
+  isPending:       boolean;
   /** Contract / wallet error to display beneath the submit button */
-  error:      string | null;
+  error:           string | null;
+  /** Unix timestamp (seconds) when the commit window closes — auto-submits at deadline */
+  commitDeadline?: number;
 };
 
 export default function AnswerForm({
@@ -220,8 +222,10 @@ export default function AnswerForm({
   onSubmit,
   isPending,
   error,
+  commitDeadline,
 }: AnswerFormProps) {
   const [values, setValues] = useState<string[]>(["", "", "", "", ""]);
+  const [autoSubmitted, setAutoSubmitted] = useState(false);
 
   // Refs for each input — used to programmatically focus next on Enter
   const inputRefs = [
@@ -241,6 +245,30 @@ export default function AnswerForm({
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-submit when commit deadline passes
+  useEffect(() => {
+    if (!commitDeadline || autoSubmitted || isPending) return;
+    const msLeft = commitDeadline * 1000 - Date.now();
+    if (msLeft <= 0) {
+      // Already past deadline — submit immediately
+      setAutoSubmitted(true);
+      const trimmed = values.map((v) => v.trim()) as [string, string, string, string, string];
+      onSubmit(trimmed);
+      return;
+    }
+    const t = setTimeout(() => {
+      setAutoSubmitted(true);
+      // Read latest values via ref to avoid stale closure
+      setValues((current) => {
+        const trimmed = current.map((v) => v.trim()) as [string, string, string, string, string];
+        onSubmit(trimmed);
+        return current;
+      });
+    }, msLeft);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commitDeadline, autoSubmitted, isPending]);
 
   function setValue(idx: number, val: string) {
     setValues((prev) => {

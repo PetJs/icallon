@@ -326,7 +326,7 @@ contract ICallOn {
         Game storage game = games[gameId];
 
         if (game.state == GameState.WAITING) {
-            if (game.playerCount < MAX_PLAYERS) revert NotEnoughPlayers();
+            // No minimum player count — players auto-register on first commit
             game.currentRound = 1;
         } else if (game.state == GameState.SCORING) {
             game.currentRound++;
@@ -568,15 +568,35 @@ contract ICallOn {
     function commitAnswers(uint256 gameId, bytes32 commitHash)
         external
         gameExists(gameId)
-        onlyPlayer(gameId)
         inState(gameId, GameState.COMMIT)
     {
         if (block.timestamp > roundData[gameId].commitDeadline) revert CommitWindowClosed();
 
-        uint8 slot = playerSlot[gameId][msg.sender];
-        if (!players[gameId][slot].isActive)   revert PlayerNotActive();
+        Game storage game = games[gameId];
 
-        uint8 round = games[gameId].currentRound;
+        // Auto-register player on first commit — no separate joinGame tx needed
+        if (!isPlayer[gameId][msg.sender]) {
+            if (game.playerCount >= MAX_PLAYERS) revert GameFull();
+            uint8 newSlot = game.playerCount;
+            players[gameId][newSlot] = PlayerData({
+                addr:         msg.sender,
+                totalScore:   0,
+                roundScore:   0,
+                isActive:     true,
+                hasCommitted: false,
+                hasRevealed:  false
+            });
+            playerSlot[gameId][msg.sender]  = newSlot;
+            isPlayer[gameId][msg.sender]    = true;
+            game.playerCount++;
+            roundData[gameId].activePlayerCount++;
+            emit PlayerJoined(gameId, msg.sender, game.playerCount);
+        }
+
+        uint8 slot = playerSlot[gameId][msg.sender];
+        if (!players[gameId][slot].isActive) revert PlayerNotActive();
+
+        uint8 round = game.currentRound;
         if (commits[gameId][round][msg.sender].committed) revert AlreadyCommitted();
 
         commits[gameId][round][msg.sender] = CommitData({
