@@ -173,13 +173,15 @@ export default function LobbyPage() {
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const playerCount = game?.playerCount ?? 0;
-  const isFull      = playerCount >= 2;
   const isAdmin     = myStatus.isAdmin;
+  const isReadyToStart = playerCount >= 1; // 1 player is enough to test
 
-  // Build 2-slot grid: filled + empty
+  // Build slot grid: filled players + 1 optional empty slot if under 2
   const slots = useMemo(() => {
     const filled = playerList.map((p, i) => ({ address: p.addr, index: i, filled: true }));
-    const empty  = Array.from({ length: Math.max(0, 2 - filled.length) }, (_, i) => ({
+    // Show at most 1 empty slot so the UI doesn't feel dead with nobody in
+    const emptyCount = filled.length < 2 ? 1 : 0;
+    const empty = Array.from({ length: emptyCount }, (_, i) => ({
       address:  undefined as `0x${string}` | undefined,
       index:    filled.length + i,
       filled:   false,
@@ -300,7 +302,8 @@ export default function LobbyPage() {
               <span className="text-sm text-[#9B9B9B]">Players</span>
             </div>
             <span className="text-sm font-medium text-white">
-              {playerCount}<span className="text-[#9B9B9B]">/2</span>
+              {playerCount}
+              <span className="text-[#9B9B9B]">/2</span>
             </span>
           </div>
 
@@ -316,9 +319,11 @@ export default function LobbyPage() {
           </div>
 
           <p className="text-xs text-[#9B9B9B]">
-            {isFull
+            {playerCount >= 2
               ? "Both players are in. Waiting for admin to start…"
-              : `Waiting for ${2 - playerCount} more player${2 - playerCount !== 1 ? "s" : ""}…`}
+              : playerCount === 1
+              ? "1 player ready. Admin can start now or wait for more players."
+              : "No players yet. Join the game or share the link."}
           </p>
         </div>
 
@@ -339,8 +344,39 @@ export default function LobbyPage() {
           )}
         </AnimatePresence>
 
+        {/* ── Admin: join as player ────────────────────────────────────────── */}
+        {isAdmin && !isPlayer && (
+          <div className="space-y-2">
+            <button
+              onClick={() => joinGame.execute()}
+              disabled={joinGame.isPending || joinGame.isConfirming}
+              className="btn-secondary w-full"
+            >
+              {joinGame.isPending ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Confirm in wallet…
+                </>
+              ) : joinGame.isConfirming ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Joining…
+                </>
+              ) : (
+                <>
+                  <UserCircle02Icon size={16} />
+                  Join as Player (optional — needed for lobby list)
+                </>
+              )}
+            </button>
+            {joinGame.error && (
+              <p className="text-xs text-[#E03E3E] px-1">{joinGame.error}</p>
+            )}
+          </div>
+        )}
+
         {/* ── Join / already in game ───────────────────────────────────────── */}
-        {isConnected && !isAdmin && !isPlayer && !isFull && (
+        {isConnected && !isAdmin && !isPlayer && playerCount < 2 && (
           <div className="space-y-2">
             <button
               onClick={() => joinGame.execute()}
@@ -427,7 +463,7 @@ export default function LobbyPage() {
         {/* ── Player grid ──────────────────────────────────────────────────── */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="label">Players {playerCount > 0 ? `(${playerCount}/2)` : ""}</h2>
+            <h2 className="label">Players {playerCount > 0 ? `(${playerCount})` : ""}</h2>
             {isAdmin && (
               <span className="text-xs text-[#9B9B9B] flex items-center gap-1">
                 <Award01Icon size={12} />
@@ -459,7 +495,7 @@ export default function LobbyPage() {
         <section className="card divide-y divide-[#2D2D2D]">
           <div className="px-4 py-3 flex items-center justify-between">
             <span className="text-sm text-[#9B9B9B]">Tournament</span>
-            <span className="text-sm text-white">1 round · 2 → 1</span>
+            <span className="text-sm text-white">Elimination · top half advances</span>
           </div>
           <div className="px-4 py-3 flex items-center justify-between">
             <span className="text-sm text-[#9B9B9B]">Answer window</span>
