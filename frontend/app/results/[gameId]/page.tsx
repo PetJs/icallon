@@ -179,15 +179,24 @@ export default function ResultsPage() {
   const myStatus                                             = useMyGameStatus(gameId);
   const { playerList, refetch: refetchPlayers }             = useAllPlayerData(gameId, game?.playerCount ?? 0);
 
+  // All players who are active — used for answer grid and flag counts
   const activePlayers = useMemo(
     () => playerList.filter((p) => p.isActive).map((p) => p.addr),
     [playerList]
   );
 
-  const { answersMap, refetch: refetchAnswers } = useAllRevealedAnswers(
+  // All players regardless of active status — for the answer grid during flagging
+  // (so eliminated players' answers still show for context)
+  const allPlayerAddrs = useMemo(
+    () => playerList.map((p) => p.addr),
+    [playerList]
+  );
+
+  const { answersMap, isLoading: answersLoading, refetch: refetchAnswers } = useAllRevealedAnswers(
     gameId,
     game?.currentRound,
-    activePlayers
+    // Use all player addresses so everyone's answers show in the grid
+    allPlayerAddrs.length > 0 ? allPlayerAddrs : activePlayers
   );
 
   // ── Write hooks (admin) ───────────────────────────────────────────────────
@@ -415,135 +424,130 @@ export default function ResultsPage() {
           </div>
         )}
 
-        {/* ── Answer grid (flagging + reveal) ───────────────────────────── */}
-        {answersMap.size > 0 && (
+        {/* ── Answer grid (always show during flagging/scoring/complete) ───── */}
+        {(isFlagging || isScoring || isComplete) && (
           <section className="space-y-3">
             <h2 className="label flex items-center gap-1.5">
               <Flag01Icon size={12} />
               Answers — Round {round}
             </h2>
 
-            {/* Desktop: full grid table */}
-            <div className="hidden sm:block card overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[#2D2D2D]">
-                      <th className="text-left px-4 py-2.5 text-[#9B9B9B] font-medium text-xs w-36">
-                        Player
-                      </th>
-                      {CATEGORY_LIST.map((cat) => (
-                        <th key={cat} className="text-left px-3 py-2.5 text-[#9B9B9B] font-medium text-xs">
-                          {CATEGORY_LABELS[cat]}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#2D2D2D]">
-                    {activePlayers.map((addr) => {
-                      const answers = answersMap.get(addr);
-                      if (!answers) return null;
-                      const isYou = address?.toLowerCase() === addr.toLowerCase();
-
-                      return (
-                        <tr
-                          key={addr}
-                          className={cn(
-                            "transition-colors duration-150",
-                            isYou ? "bg-[#008751]/5" : "hover:bg-[#2D2D2D]/30"
-                          )}
-                        >
-                          <td className="px-4 py-2.5">
-                            <div className="flex items-center gap-2">
-                              <span className={cn(
-                                "font-mono text-xs",
-                                isYou ? "text-[#008751]" : "text-[#9B9B9B]"
-                              )}>
-                                {formatAddress(addr, 4)}
-                              </span>
-                              {isYou && (
-                                <span className="text-[10px] text-[#008751] border border-[#008751]/30 rounded px-1">
-                                  You
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          {CATEGORY_LIST.map((cat) => (
-                            <td key={cat} className="px-3 py-2.5">
-                              <AnswerCell
-                                answer={answers[cat]}
-                                playerAddr={addr}
-                                category={cat}
-                                gameId={gameId}
-                                round={round}
-                                activeCount={activeCount}
-                                canFlag={myStatus.canFlag}
-                                myAddress={address}
-                              />
-                            </td>
-                          ))}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+            {/* Loading */}
+            {answersLoading && answersMap.size === 0 && (
+              <div className="card px-5 py-4 flex items-center gap-3">
+                <Loading03Icon size={16} className="animate-spin text-[#9B9B9B] shrink-0" />
+                <span className="text-sm text-[#9B9B9B]">Loading answers…</span>
               </div>
-            </div>
+            )}
+
+            {/* Nothing revealed */}
+            {!answersLoading && answersMap.size === 0 && (
+              <div className="card px-5 py-4 flex items-center gap-3">
+                <InformationCircleIcon size={16} className="text-[#9B9B9B] shrink-0" />
+                <span className="text-sm text-[#9B9B9B]">
+                  No answers revealed yet.
+                </span>
+              </div>
+            )}
+
+            {/* Desktop: full grid table */}
+            {answersMap.size > 0 && (
+              <div className="hidden sm:block card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[#2D2D2D]">
+                        <th className="text-left px-4 py-2.5 text-[#9B9B9B] font-medium text-xs w-36">
+                          Player
+                        </th>
+                        {CATEGORY_LIST.map((cat) => (
+                          <th key={cat} className="text-left px-3 py-2.5 text-[#9B9B9B] font-medium text-xs">
+                            {CATEGORY_LABELS[cat]}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2D2D2D]">
+                      {Array.from(answersMap.entries()).map(([addr, answers]) => {
+                        const isYou = address?.toLowerCase() === addr.toLowerCase();
+                        return (
+                          <tr
+                            key={addr}
+                            className={cn(
+                              "transition-colors duration-150",
+                              isYou ? "bg-[#008751]/5" : "hover:bg-[#2D2D2D]/30"
+                            )}
+                          >
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-2">
+                                <span className={cn("font-mono text-xs", isYou ? "text-[#008751]" : "text-[#9B9B9B]")}>
+                                  {formatAddress(addr, 4)}
+                                </span>
+                                {isYou && (
+                                  <span className="text-[10px] text-[#008751] border border-[#008751]/30 rounded px-1">You</span>
+                                )}
+                              </div>
+                            </td>
+                            {CATEGORY_LIST.map((cat) => (
+                              <td key={cat} className="px-3 py-2.5">
+                                <AnswerCell
+                                  answer={answers[cat]}
+                                  playerAddr={addr}
+                                  category={cat}
+                                  gameId={gameId}
+                                  round={round}
+                                  activeCount={activeCount}
+                                  canFlag={myStatus.canFlag}
+                                  myAddress={address}
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Mobile: card-per-player */}
-            <div className="sm:hidden space-y-3">
-              {activePlayers.map((addr) => {
-                const answers = answersMap.get(addr);
-                if (!answers) return null;
-                const isYou = address?.toLowerCase() === addr.toLowerCase();
-
-                return (
-                  <div
-                    key={addr}
-                    className={cn(
-                      "card p-4 space-y-3",
-                      isYou && "border-[#008751]/30"
-                    )}
-                  >
-                    {/* Player header */}
-                    <div className="flex items-center gap-2">
-                      <span className={cn(
-                        "font-mono text-xs",
-                        isYou ? "text-[#008751]" : "text-[#9B9B9B]"
-                      )}>
-                        {formatAddress(addr, 5)}
-                      </span>
-                      {isYou && (
-                        <span className="text-[10px] text-[#008751] border border-[#008751]/30 rounded px-1">
-                          You
+            {answersMap.size > 0 && (
+              <div className="sm:hidden space-y-3">
+                {Array.from(answersMap.entries()).map(([addr, answers]) => {
+                  const isYou = address?.toLowerCase() === addr.toLowerCase();
+                  return (
+                    <div key={addr} className={cn("card p-4 space-y-3", isYou && "border-[#008751]/30")}>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("font-mono text-xs", isYou ? "text-[#008751]" : "text-[#9B9B9B]")}>
+                          {formatAddress(addr, 5)}
                         </span>
-                      )}
+                        {isYou && (
+                          <span className="text-[10px] text-[#008751] border border-[#008751]/30 rounded px-1">You</span>
+                        )}
+                      </div>
+                      <div className="space-y-2 divide-y divide-[#2D2D2D]">
+                        {CATEGORY_LIST.map((cat) => (
+                          <div key={cat} className="flex items-center gap-3 pt-2 first:pt-0">
+                            <span className="text-xs text-[#9B9B9B] w-14 shrink-0">{CATEGORY_LABELS[cat]}</span>
+                            <AnswerCell
+                              answer={answers[cat]}
+                              playerAddr={addr}
+                              category={cat}
+                              gameId={gameId}
+                              round={round}
+                              activeCount={activeCount}
+                              canFlag={myStatus.canFlag}
+                              myAddress={address}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-
-                    {/* Answers */}
-                    <div className="space-y-2 divide-y divide-[#2D2D2D]">
-                      {CATEGORY_LIST.map((cat) => (
-                        <div key={cat} className="flex items-center gap-3 pt-2 first:pt-0">
-                          <span className="text-xs text-[#9B9B9B] w-14 shrink-0">
-                            {CATEGORY_LABELS[cat]}
-                          </span>
-                          <AnswerCell
-                            answer={answers[cat]}
-                            playerAddr={addr}
-                            category={cat}
-                            gameId={gameId}
-                            round={round}
-                            activeCount={activeCount}
-                            canFlag={myStatus.canFlag}
-                            myAddress={address}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
         )}
 

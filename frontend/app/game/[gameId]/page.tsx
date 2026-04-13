@@ -259,8 +259,12 @@ export default function GamePage() {
     if (event.newState === GameState.REVEAL) {
       setLiveRevealCount(0);
     }
-    // Navigate to results when scoring/complete
-    if (event.newState === GameState.SCORING || event.newState === GameState.COMPLETE) {
+    // Navigate to results for flagging, scoring, and complete
+    if (
+      event.newState === GameState.FLAGGING ||
+      event.newState === GameState.SCORING  ||
+      event.newState === GameState.COMPLETE
+    ) {
       router.push(`/results/${gameId}`);
     }
   }, [refetchGame, refetchRound, gameId, router]));
@@ -277,7 +281,11 @@ export default function GamePage() {
   useEffect(() => {
     if (!game) return;
     if (game.state === GameState.WAITING) router.replace(`/lobby/${gameId}`);
-    if (game.state === GameState.SCORING || game.state === GameState.COMPLETE) {
+    if (
+      game.state === GameState.FLAGGING ||
+      game.state === GameState.SCORING  ||
+      game.state === GameState.COMPLETE
+    ) {
       router.replace(`/results/${gameId}`);
     }
   }, [game, gameId, router]);
