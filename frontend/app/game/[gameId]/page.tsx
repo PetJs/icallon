@@ -300,7 +300,9 @@ export default function GamePage() {
   }, [playerList, roundData]);
 
   // ── Admin: can advance phase ───────────────────────────────────────────────
-  const canOpenReveal   = myStatus.isAdmin && phase.state === GameState.COMMIT   && phase.deadlinePassed;
+  // Don't let admin open reveal while a commit tx is still confirming
+  const canOpenReveal   = myStatus.isAdmin && phase.state === GameState.COMMIT   && phase.deadlinePassed
+                          && !commitAnswers.isPending && !commitAnswers.isConfirming;
   const canOpenFlagging = myStatus.isAdmin && phase.state === GameState.REVEAL   && phase.deadlinePassed;
   const canScoreRound   = myStatus.isAdmin && phase.state === GameState.FLAGGING && phase.deadlinePassed;
 
@@ -465,7 +467,8 @@ export default function GamePage() {
             )}
 
             {/* Window closed, not committed */}
-            {phase.deadlinePassed && !myStatus.hasCommitted && isConnected && (
+            {phase.deadlinePassed && !myStatus.hasCommitted && isConnected &&
+             !commitAnswers.isPending && !commitAnswers.isConfirming && (
               <div className="flex items-center gap-3 px-5 py-4 card">
                 <InformationCircleIcon size={16} className="text-[#9B9B9B] shrink-0" />
                 <p className="text-sm text-[#9B9B9B]">

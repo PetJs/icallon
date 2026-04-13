@@ -261,12 +261,16 @@ export default function AnswerForm({
       ];
       onSubmitRef.current(trimmed);
     };
-    const msLeft = commitDeadline * 1000 - Date.now();
+    // Fire 3 seconds BEFORE the on-chain deadline so the tx is mined in time.
+    // Monad blocks are ~0.4s — 3s = ~7 blocks of buffer.
+    // The contract reverts if block.timestamp > commitDeadline, so submitting
+    // exactly at the deadline means the tx lands 1 block late and reverts.
+    const BUFFER_MS = 3_000;
+    const msLeft = commitDeadline * 1000 - Date.now() - BUFFER_MS;
     if (msLeft <= 0) { fire(); return; }
     const t = setTimeout(fire, msLeft);
     return () => clearTimeout(t);
-  // Only re-run if the deadline itself changes (new round). Never on isPending
-  // or onSubmit changes — those are handled via refs above.
+  // Only re-run if the deadline itself changes (new round).
   }, [commitDeadline]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-focus first input when the form mounts
