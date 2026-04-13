@@ -418,24 +418,44 @@ export default function GamePage() {
               </AnimatePresence>
             )}
 
-            {/* Already committed */}
+            {/* Already committed — show locked-in answers */}
             {myStatus.hasCommitted && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-3 px-5 py-4 card"
+                className="card px-5 py-4 space-y-3"
               >
-                <div className="w-8 h-8 rounded-full bg-[#008751]/10 flex items-center justify-center shrink-0">
-                  <SquareLockPasswordIcon size={16} className="text-[#008751]" />
+                {/* Header */}
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#008751]/10 flex items-center justify-center shrink-0">
+                    <SquareLockPasswordIcon size={16} className="text-[#008751]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white">Answers locked in!</p>
+                    <p className="text-xs text-[#9B9B9B] mt-0.5">Waiting for reveal phase…</p>
+                  </div>
+                  <CheckmarkCircle01Icon size={20} className="text-[#008751] shrink-0" />
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-white">Answers locked in!</p>
-                  <p className="text-xs text-[#9B9B9B] mt-0.5">
-                    Wait for the reveal phase to show your answers.
-                    {/* Monad's fast finality means this transition is nearly instant */}
-                  </p>
-                </div>
-                <CheckmarkCircle01Icon size={20} className="text-[#008751] ml-auto shrink-0" />
+
+                {/* Show the saved answers */}
+                {revealAnswers.savedAnswers && (
+                  <>
+                    <div className="divider" />
+                    <div className="space-y-2">
+                      {["Person", "Place", "Thing", "Animal", "Food"].map((cat, i) => (
+                        <div key={cat} className="flex items-center gap-3">
+                          <span className="text-xs text-[#9B9B9B] w-14 shrink-0">{cat}</span>
+                          <span className={cn(
+                            "text-sm font-medium flex-1",
+                            revealAnswers.savedAnswers![i] ? "text-white" : "text-[#9B9B9B] italic"
+                          )}>
+                            {revealAnswers.savedAnswers![i] || "—"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </motion.div>
             )}
 
