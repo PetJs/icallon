@@ -3,14 +3,12 @@
 import {
   ArrowRight01Icon,
   CheckmarkCircle01Icon,
-  CrownIcon,
   EyeIcon,
   GameController01Icon,
   InformationCircleIcon,
   Loading03Icon,
   SquareLockPasswordIcon,
   Timer01Icon,
-  Copy01Icon,
   UserGroupIcon,
 } from "@hugeicons/react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
@@ -208,7 +206,7 @@ export default function GamePage() {
     }
   }, [game?.state, game?.currentRound, letter]);
 
-  // ── Auto-reveal: when phase enters REVEAL and player has committed, reveal immediately ──
+  // ── Auto-reveal: fires immediately when REVEAL opens and player has committed ──
   const hasAutoRevealedRef = useRef(false);
   useEffect(() => {
     if (
@@ -223,6 +221,39 @@ export default function GamePage() {
     revealAnswers.execute();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase.state, myStatus.hasCommitted, myStatus.hasRevealed]);
+
+  // ── Auto-advance phases (admin only) ─────────────────────────────────────
+  // Admin just confirms the wallet popup when it appears — no button-clicking.
+  const hasAutoOpenedRevealRef    = useRef(false);
+  const hasAutoOpenedFlaggingRef  = useRef(false);
+  useEffect(() => {
+    if (!myStatus.isAdmin) return;
+    // Auto open reveal when commit deadline passes (and no commit tx is still in flight)
+    if (
+      phase.state === GameState.COMMIT &&
+      phase.deadlinePassed &&
+      !commitAnswers.isPending && !commitAnswers.isConfirming &&
+      !openReveal.isPending   && !openReveal.isConfirming &&
+      !hasAutoOpenedRevealRef.current
+    ) {
+      hasAutoOpenedRevealRef.current = true;
+      openReveal.execute();
+    }
+    // Auto open flagging when reveal deadline passes
+    if (
+      phase.state === GameState.REVEAL &&
+      phase.deadlinePassed &&
+      !openFlagging.isPending && !openFlagging.isConfirming &&
+      !hasAutoOpenedFlaggingRef.current
+    ) {
+      hasAutoOpenedFlaggingRef.current = true;
+      openFlagging.execute();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    myStatus.isAdmin, phase.state, phase.deadlinePassed,
+    commitAnswers.isPending, commitAnswers.isConfirming,
+  ]);
 
   // ── Live commit / reveal counts ────────────────────────────────────────────
   const [liveCommitCount, setLiveCommitCount] = useState(0);
@@ -298,13 +329,6 @@ export default function GamePage() {
     if (fromList > 0) return fromList;
     return roundData?.activePlayerCount ?? 0;
   }, [playerList, roundData]);
-
-  // ── Admin: can advance phase ───────────────────────────────────────────────
-  // Don't let admin open reveal while a commit tx is still confirming
-  const canOpenReveal   = myStatus.isAdmin && phase.state === GameState.COMMIT   && phase.deadlinePassed
-                          && !commitAnswers.isPending && !commitAnswers.isConfirming;
-  const canOpenFlagging = myStatus.isAdmin && phase.state === GameState.REVEAL   && phase.deadlinePassed;
-  const canScoreRound   = myStatus.isAdmin && phase.state === GameState.FLAGGING && phase.deadlinePassed;
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (!game) {
@@ -477,35 +501,17 @@ export default function GamePage() {
               </div>
             )}
 
-            {/* Admin: open reveal */}
-            {canOpenReveal && (
-              <div className="card px-5 py-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <CrownIcon size={14} className="text-[#DFAB01]" />
-                  <span className="text-sm font-medium text-white">Admin — Open Reveal Phase</span>
-                </div>
-                <button
-                  onClick={() => openReveal.execute()}
-                  disabled={openReveal.isPending || openReveal.isConfirming}
-                  className="btn-primary w-full"
-                >
-                  {openReveal.isPending || openReveal.isConfirming ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      {openReveal.isConfirming ? "Confirming…" : "Confirm in wallet…"}
-                    </>
-                  ) : (
-                    <>
-                      <EyeIcon size={16} />
-                      Open Reveal Phase
-                      <ArrowRight01Icon size={16} />
-                    </>
-                  )}
-                </button>
-                {openReveal.error && (
-                  <p className="text-xs text-[#E03E3E]">{openReveal.error}</p>
-                )}
+            {/* Admin: reveal phase auto-advancing */}
+            {myStatus.isAdmin && phase.deadlinePassed && (openReveal.isPending || openReveal.isConfirming) && (
+              <div className="flex items-center gap-3 px-5 py-4 card">
+                <span className="w-4 h-4 border-2 border-[#DFAB01]/30 border-t-[#DFAB01] rounded-full animate-spin shrink-0" />
+                <p className="text-sm text-[#9B9B9B]">
+                  {openReveal.isConfirming ? "Opening reveal phase on-chain…" : "Confirm in wallet — opening reveal phase"}
+                </p>
               </div>
+            )}
+            {openReveal.error && myStatus.isAdmin && (
+              <p className="text-xs text-[#E03E3E] px-1">{openReveal.error}</p>
             )}
           </div>
         )}
@@ -521,68 +527,54 @@ export default function GamePage() {
               <RevealProgress revealed={liveRevealCount} total={activeCount} />
             </div>
 
-            {/* Reveal CTA */}
+            {/* Auto-reveal status */}
             {myStatus.isInGame && myStatus.isActive && myStatus.hasCommitted && !myStatus.hasRevealed && (
-              <AnimatePresence>
-                {!phase.deadlinePassed && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="card px-5 py-5 space-y-4"
-                  >
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-white">Your committed answers</p>
-                      <p className="text-xs text-[#9B9B9B]">
-                        These are the answers you locked in. Click reveal to publish them.
-                      </p>
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="card px-5 py-4 space-y-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#DFAB01]/10 flex items-center justify-center shrink-0">
+                    {revealAnswers.isPending || revealAnswers.isConfirming
+                      ? <span className="w-4 h-4 border-2 border-[#DFAB01]/30 border-t-[#DFAB01] rounded-full animate-spin" />
+                      : <EyeIcon size={16} className="text-[#DFAB01]" />
+                    }
+                  </div>
+                  <div className="flex-1">
+                    {revealAnswers.isPending
+                      ? <><p className="text-sm font-medium text-white">Approve reveal in wallet</p>
+                          <p className="text-xs text-[#9B9B9B] mt-0.5">Check your wallet for a signature request</p></>
+                      : revealAnswers.isConfirming
+                      ? <><p className="text-sm font-medium text-white">Revealing answers on-chain…</p>
+                          <p className="text-xs text-[#9B9B9B] mt-0.5">Confirming transaction</p></>
+                      : <><p className="text-sm font-medium text-white">Waiting for reveal phase</p>
+                          <p className="text-xs text-[#9B9B9B] mt-0.5">Answers will be revealed automatically</p></>
+                    }
+                  </div>
+                </div>
+                {/* Show the locked-in answers */}
+                {revealAnswers.savedAnswers && (
+                  <>
+                    <div className="divider" />
+                    <div className="space-y-2">
+                      {["Person", "Place", "Thing", "Animal", "Food"].map((cat, i) => (
+                        <div key={cat} className="flex items-center gap-3">
+                          <span className="text-xs text-[#9B9B9B] w-14 shrink-0">{cat}</span>
+                          <span className={cn("text-sm font-medium flex-1",
+                            revealAnswers.savedAnswers![i] ? "text-white" : "text-[#9B9B9B] italic"
+                          )}>
+                            {revealAnswers.savedAnswers![i] || "—"}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-
-                    {/* Show saved answers */}
-                    {revealAnswers.savedAnswers && (
-                      <div className="space-y-2">
-                        {["Person", "Place", "Thing", "Animal", "Food"].map((cat, i) => (
-                          <div key={cat} className="flex items-center gap-3">
-                            <span className="text-xs text-[#9B9B9B] w-14 shrink-0">{cat}</span>
-                            <span className={cn(
-                              "text-sm font-medium flex-1",
-                              revealAnswers.savedAnswers![i] ? "text-white" : "text-[#9B9B9B] italic"
-                            )}>
-                              {revealAnswers.savedAnswers![i] || "—"}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <button
-                      onClick={() => revealAnswers.execute()}
-                      disabled={revealAnswers.isPending || revealAnswers.isConfirming}
-                      className="btn-primary w-full"
-                    >
-                      {revealAnswers.isPending ? (
-                        <>
-                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Confirm in wallet…
-                        </>
-                      ) : revealAnswers.isConfirming ? (
-                        <>
-                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Revealing…
-                        </>
-                      ) : (
-                        <>
-                          <EyeIcon size={16} />
-                          Reveal My Answers
-                        </>
-                      )}
-                    </button>
-
-                    {revealAnswers.error && (
-                      <p className="text-xs text-[#E03E3E]">{revealAnswers.error}</p>
-                    )}
-                  </motion.div>
+                  </>
                 )}
-              </AnimatePresence>
+                {revealAnswers.error && (
+                  <p className="text-xs text-[#E03E3E]">{revealAnswers.error}</p>
+                )}
+              </motion.div>
             )}
 
             {/* Already revealed */}
@@ -614,31 +606,17 @@ export default function GamePage() {
               </div>
             )}
 
-            {/* Admin: open flagging */}
-            {canOpenFlagging && (
-              <div className="card px-5 py-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <CrownIcon size={14} className="text-[#DFAB01]" />
-                  <span className="text-sm font-medium text-white">Admin — Open Flagging Phase</span>
-                </div>
-                <button
-                  onClick={() => openFlagging.execute()}
-                  disabled={openFlagging.isPending || openFlagging.isConfirming}
-                  className="btn-primary w-full"
-                >
-                  {openFlagging.isPending || openFlagging.isConfirming ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      {openFlagging.isConfirming ? "Confirming…" : "Confirm in wallet…"}
-                    </>
-                  ) : (
-                    <>Open Flagging Phase <ArrowRight01Icon size={16} /></>
-                  )}
-                </button>
-                {openFlagging.error && (
-                  <p className="text-xs text-[#E03E3E]">{openFlagging.error}</p>
-                )}
+            {/* Admin: flagging phase auto-advancing */}
+            {myStatus.isAdmin && phase.deadlinePassed && (openFlagging.isPending || openFlagging.isConfirming) && (
+              <div className="flex items-center gap-3 px-5 py-4 card">
+                <span className="w-4 h-4 border-2 border-[#DFAB01]/30 border-t-[#DFAB01] rounded-full animate-spin shrink-0" />
+                <p className="text-sm text-[#9B9B9B]">
+                  {openFlagging.isConfirming ? "Opening flagging phase on-chain…" : "Confirm in wallet — opening flagging phase"}
+                </p>
               </div>
+            )}
+            {openFlagging.error && myStatus.isAdmin && (
+              <p className="text-xs text-[#E03E3E] px-1">{openFlagging.error}</p>
             )}
           </div>
         )}
@@ -676,34 +654,13 @@ export default function GamePage() {
               </button>
             </div>
 
-            {/* Admin: score round */}
-            {canScoreRound && (
-              <div className="card px-5 py-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <CrownIcon size={14} className="text-[#DFAB01]" />
-                  <span className="text-sm font-medium text-white">Admin — Score Round</span>
-                </div>
-                <button
-                  onClick={() => scoreRound.execute()}
-                  disabled={scoreRound.isPending || scoreRound.isConfirming}
-                  className="btn-primary w-full"
-                >
-                  {scoreRound.isPending || scoreRound.isConfirming ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      {scoreRound.isConfirming ? "Scoring…" : "Confirm in wallet…"}
-                    </>
-                  ) : (
-                    <>
-                      <Copy01Icon size={16} />
-                      Score Round & Advance
-                      <ArrowRight01Icon size={16} />
-                    </>
-                  )}
-                </button>
-                {scoreRound.error && (
-                  <p className="text-xs text-[#E03E3E]">{scoreRound.error}</p>
-                )}
+            {/* Admin: score round auto-advancing (shown only if somehow still on this page) */}
+            {myStatus.isAdmin && phase.deadlinePassed && (scoreRound.isPending || scoreRound.isConfirming) && (
+              <div className="flex items-center gap-3 px-5 py-4 card">
+                <span className="w-4 h-4 border-2 border-[#DFAB01]/30 border-t-[#DFAB01] rounded-full animate-spin shrink-0" />
+                <p className="text-sm text-[#9B9B9B]">
+                  {scoreRound.isConfirming ? "Scoring round on-chain…" : "Confirm in wallet — scoring round"}
+                </p>
               </div>
             )}
           </div>

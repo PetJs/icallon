@@ -254,15 +254,41 @@ export default function ResultsPage() {
     refetchGame();
   }, [prizeKey, refetchGame]));
 
+  // ── Auto-advance phases (admin only, no button-clicking needed) ──────────
+  const hasAutoOpenedFlaggingRef = useRef(false);
+  const hasAutoScoredRef         = useRef(false);
+  useEffect(() => {
+    if (!myStatus.isAdmin) return;
+    // Fallback: open flagging if reveal deadline passed (game page handles primary)
+    if (
+      phase.state === GameState.REVEAL &&
+      phase.deadlinePassed &&
+      !openFlagging.isPending && !openFlagging.isConfirming &&
+      !hasAutoOpenedFlaggingRef.current
+    ) {
+      hasAutoOpenedFlaggingRef.current = true;
+      openFlagging.execute();
+    }
+    // Auto score round when flagging deadline passes
+    if (
+      phase.state === GameState.FLAGGING &&
+      phase.deadlinePassed &&
+      !scoreRound.isPending && !scoreRound.isConfirming &&
+      !hasAutoScoredRef.current
+    ) {
+      hasAutoScoredRef.current = true;
+      scoreRound.execute();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myStatus.isAdmin, phase.state, phase.deadlinePassed]);
+
   // ── Derived state ─────────────────────────────────────────────────────────
   const activeCount = activePlayers.length;
   const isComplete  = game?.state === GameState.COMPLETE;
   const isFlagging  = game?.state === GameState.FLAGGING;
   const isScoring   = game?.state === GameState.SCORING;
 
-  const canOpenFlagging = myStatus.isAdmin && phase.state === GameState.REVEAL   && phase.deadlinePassed;
-  const canScoreRound   = myStatus.isAdmin && phase.state === GameState.FLAGGING && phase.deadlinePassed;
-  const canStartNext    = myStatus.isAdmin && phase.state === GameState.SCORING;
+  const canStartNext = myStatus.isAdmin && phase.state === GameState.SCORING;
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (!game) {
@@ -373,75 +399,53 @@ export default function ResultsPage() {
           )}
         </AnimatePresence>
 
-        {/* ── Admin controls ─────────────────────────────────────────────── */}
-        {(canOpenFlagging || canScoreRound || canStartNext) && (
+        {/* ── Auto-phase status (openFlagging / scoreRound) ──────────────── */}
+        {myStatus.isAdmin && (openFlagging.isPending || openFlagging.isConfirming) && (
+          <div className="flex items-center gap-3 px-5 py-4 card">
+            <span className="w-4 h-4 border-2 border-[#DFAB01]/30 border-t-[#DFAB01] rounded-full animate-spin shrink-0" />
+            <p className="text-sm text-[#9B9B9B]">
+              {openFlagging.isConfirming ? "Opening flagging phase on-chain…" : "Confirm in wallet — opening flagging phase"}
+            </p>
+          </div>
+        )}
+        {openFlagging.error && myStatus.isAdmin && (
+          <p className="text-xs text-[#E03E3E] px-1">{openFlagging.error}</p>
+        )}
+
+        {myStatus.isAdmin && (scoreRound.isPending || scoreRound.isConfirming) && (
+          <div className="flex items-center gap-3 px-5 py-4 card">
+            <span className="w-4 h-4 border-2 border-[#DFAB01]/30 border-t-[#DFAB01] rounded-full animate-spin shrink-0" />
+            <p className="text-sm text-[#9B9B9B]">
+              {scoreRound.isConfirming ? "Scoring round on-chain…" : "Confirm in wallet — scoring round"}
+            </p>
+          </div>
+        )}
+        {scoreRound.error && myStatus.isAdmin && (
+          <p className="text-xs text-[#E03E3E] px-1">{scoreRound.error}</p>
+        )}
+
+        {/* ── Start next round (admin intentional action) ────────────────── */}
+        {canStartNext && !isComplete && (
           <div className="card px-5 py-4 space-y-3">
             <div className="flex items-center gap-2">
               <CrownIcon size={14} className="text-[#DFAB01]" />
-              <span className="text-sm font-medium text-white">Admin Controls</span>
+              <span className="text-sm font-medium text-white">Admin — Start Next Round</span>
             </div>
-
-            {canOpenFlagging && (
-              <div className="space-y-2">
-                <p className="text-xs text-[#9B9B9B]">Reveal phase ended. Open flagging window.</p>
-                <button
-                  onClick={() => openFlagging.execute()}
-                  disabled={openFlagging.isPending || openFlagging.isConfirming}
-                  className="btn-primary w-full"
-                >
-                  {openFlagging.isPending || openFlagging.isConfirming ? (
-                    <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      {openFlagging.isConfirming ? "Confirming…" : "Confirm in wallet…"}
-                    </>
-                  ) : (
-                    <><Flag01Icon size={16} /> Open Flagging Phase <ArrowRight01Icon size={16} /></>
-                  )}
-                </button>
-                {openFlagging.error && <p className="text-xs text-[#E03E3E]">{openFlagging.error}</p>}
-              </div>
-            )}
-
-            {canScoreRound && (
-              <div className="space-y-2">
-                <p className="text-xs text-[#9B9B9B]">Flagging window closed. Calculate scores.</p>
-                <button
-                  onClick={() => scoreRound.execute()}
-                  disabled={scoreRound.isPending || scoreRound.isConfirming}
-                  className="btn-primary w-full"
-                >
-                  {scoreRound.isPending || scoreRound.isConfirming ? (
-                    <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      {scoreRound.isConfirming ? "Scoring on-chain…" : "Confirm in wallet…"}
-                    </>
-                  ) : (
-                    <><Award01Icon size={16} /> Score Round &amp; Eliminate <ArrowRight01Icon size={16} /></>
-                  )}
-                </button>
-                {scoreRound.error && <p className="text-xs text-[#E03E3E]">{scoreRound.error}</p>}
-              </div>
-            )}
-
-            {canStartNext && !isComplete && (
-              <div className="space-y-2">
-                <p className="text-xs text-[#9B9B9B]">
-                  Round {round} complete. Start round {round + 1}.
-                </p>
-                <button
-                  onClick={() => startRound.execute()}
-                  disabled={startRound.isPending || startRound.isConfirming}
-                  className="btn-primary w-full"
-                >
-                  {startRound.isPending || startRound.isConfirming ? (
-                    <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      {startRound.isConfirming ? "Starting…" : "Confirm in wallet…"}
-                    </>
-                  ) : (
-                    <>Start Round {round + 1} <ArrowRight01Icon size={16} /></>
-                  )}
-                </button>
-                {startRound.error && <p className="text-xs text-[#E03E3E]">{startRound.error}</p>}
-              </div>
-            )}
+            <p className="text-xs text-[#9B9B9B]">Round {round} scored. Start round {round + 1} when ready.</p>
+            <button
+              onClick={() => startRound.execute()}
+              disabled={startRound.isPending || startRound.isConfirming}
+              className="btn-primary w-full"
+            >
+              {startRound.isPending || startRound.isConfirming ? (
+                <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {startRound.isConfirming ? "Starting…" : "Confirm in wallet…"}
+                </>
+              ) : (
+                <>Start Round {round + 1} <ArrowRight01Icon size={16} /></>
+              )}
+            </button>
+            {startRound.error && <p className="text-xs text-[#E03E3E]">{startRound.error}</p>}
           </div>
         )}
 
