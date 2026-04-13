@@ -215,6 +215,8 @@ type AnswerFormProps = {
   error:           string | null;
   /** Unix timestamp (seconds) when the commit window closes — auto-submits at deadline */
   commitDeadline?: number;
+  /** True once commit deadline has passed — disables inputs, shows time-up banner */
+  deadlinePassed?: boolean;
 };
 
 export default function AnswerForm({
@@ -223,9 +225,9 @@ export default function AnswerForm({
   isPending,
   error,
   commitDeadline,
+  deadlinePassed = false,
 }: AnswerFormProps) {
   const [values, setValues] = useState<string[]>(["", "", "", "", ""]);
-  const [autoSubmitted, setAutoSubmitted] = useState(false);
 
   // Refs for each input — used to programmatically focus next on Enter
   const inputRefs = [
@@ -236,8 +238,38 @@ export default function AnswerForm({
     useRef<HTMLInputElement>(null),
   ];
 
+  // Keep a ref to the latest answers so the auto-submit timeout always reads
+  // current values even if the component re-renders after the timeout was set.
+  const latestValuesRef = useRef(values);
+  useEffect(() => { latestValuesRef.current = values; }, [values]);
+
+  // Keep a ref to the latest onSubmit so we don't need it as an effect dep.
+  const onSubmitRef = useRef(onSubmit);
+  useEffect(() => { onSubmitRef.current = onSubmit; }, [onSubmit]);
+
+  // Auto-submit — fires once at the deadline using a ref flag so it can never
+  // be cancelled by a re-render or unmount caused by phase.deadlinePassed
+  // ticking at the same millisecond as the timeout.
+  const autoSubmittedRef = useRef(false);
+  useEffect(() => {
+    if (!commitDeadline) return;
+    const fire = () => {
+      if (autoSubmittedRef.current) return;
+      autoSubmittedRef.current = true;
+      const trimmed = latestValuesRef.current.map((v) => v.trim()) as [
+        string, string, string, string, string
+      ];
+      onSubmitRef.current(trimmed);
+    };
+    const msLeft = commitDeadline * 1000 - Date.now();
+    if (msLeft <= 0) { fire(); return; }
+    const t = setTimeout(fire, msLeft);
+    return () => clearTimeout(t);
+  // Only re-run if the deadline itself changes (new round). Never on isPending
+  // or onSubmit changes — those are handled via refs above.
+  }, [commitDeadline]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-focus first input when the form mounts
-  // (after LetterReveal animation completes)
   useEffect(() => {
     const t = setTimeout(() => {
       inputRefs[0].current?.focus();
@@ -245,30 +277,6 @@ export default function AnswerForm({
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Auto-submit when commit deadline passes
-  useEffect(() => {
-    if (!commitDeadline || autoSubmitted || isPending) return;
-    const msLeft = commitDeadline * 1000 - Date.now();
-    if (msLeft <= 0) {
-      // Already past deadline — submit immediately
-      setAutoSubmitted(true);
-      const trimmed = values.map((v) => v.trim()) as [string, string, string, string, string];
-      onSubmit(trimmed);
-      return;
-    }
-    const t = setTimeout(() => {
-      setAutoSubmitted(true);
-      // Read latest values via ref to avoid stale closure
-      setValues((current) => {
-        const trimmed = current.map((v) => v.trim()) as [string, string, string, string, string];
-        onSubmit(trimmed);
-        return current;
-      });
-    }, msLeft);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [commitDeadline, autoSubmitted, isPending]);
 
   function setValue(idx: number, val: string) {
     setValues((prev) => {
@@ -295,7 +303,9 @@ export default function AnswerForm({
     return t !== "" && !validateAnswer(t, letter);
   });
 
-  const canSubmit = !hasInvalidAnswer && !isPending;
+  // Disable everything once the window closes (auto-submit has already fired)
+  const isLocked  = deadlinePassed || autoSubmittedRef.current;
+  const canSubmit = !hasInvalidAnswer && !isPending && !isLocked;
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -316,6 +326,16 @@ export default function AnswerForm({
       transition={{ duration: 0.2 }}
       className="card p-5 space-y-4"
     >
+      {/* Time-up / auto-submitting banner */}
+      {isLocked && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-[6px] bg-[#DFAB01]/10 border border-[#DFAB01]/20 text-xs text-[#DFAB01]">
+          <span className="w-2 h-2 rounded-full bg-[#DFAB01] animate-pulse shrink-0" />
+          {isPending
+            ? "Locking in your answers on-chain…"
+            : "Time's up — answers auto-submitted."}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
@@ -354,7 +374,7 @@ export default function AnswerForm({
             onChange={(val) => setValue(idx, val)}
             onEnter={() => focusNext(idx)}
             inputRef={inputRefs[idx]}
-            disabled={isPending}
+            disabled={isPending || isLocked}
           />
         ))}
       </div>
@@ -363,7 +383,7 @@ export default function AnswerForm({
       <div className="space-y-2 pt-1">
         <button
           type="submit"
-          disabled={!canSubmit || isPending}
+          disabled={!canSubmit}
           className="btn-primary w-full"
         >
           {isPending ? (
@@ -371,6 +391,8 @@ export default function AnswerForm({
               <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               Locking in answers…
             </>
+          ) : isLocked ? (
+            "Answers submitted"
           ) : hasInvalidAnswer ? (
             "Fix invalid answers first"
           ) : filledCount === 0 ? (

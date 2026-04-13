@@ -408,22 +408,19 @@ export default function GamePage() {
             {/* Answer form — for any connected player who hasn't committed yet
                 (auto-registration happens on first commitAnswers tx) */}
             {isConnected && !myStatus.hasCommitted && (!myStatus.isInGame || myStatus.isActive) && (
-              <AnimatePresence>
-                {(!phase.deadlinePassed || commitAnswers.isPending || commitAnswers.isConfirming) && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <AnswerForm
-                      letter={letter}
-                      onSubmit={(answers) => commitAnswers.execute(answers)}
-                      isPending={commitAnswers.isPending || commitAnswers.isConfirming}
-                      error={commitAnswers.error}
-                      commitDeadline={phase.activeDeadline ? Number(phase.activeDeadline) : undefined}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <AnswerForm
+                  letter={letter}
+                  onSubmit={(answers) => commitAnswers.execute(answers)}
+                  isPending={commitAnswers.isPending || commitAnswers.isConfirming}
+                  error={commitAnswers.error}
+                  commitDeadline={phase.activeDeadline ? Number(phase.activeDeadline) : undefined}
+                  deadlinePassed={phase.deadlinePassed}
+                />
+              </motion.div>
             )}
 
             {/* Already committed — show locked-in answers */}
