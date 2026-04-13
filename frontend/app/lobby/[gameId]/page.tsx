@@ -26,6 +26,7 @@ import {
   useAllPlayerData,
   useGameData,
   useIsPlayer,
+  useJoinGame,
   useMyGameStatus,
   useStartRound,
 } from "@/hooks/useICallOn";
@@ -130,6 +131,7 @@ export default function LobbyPage() {
   const myStatus                                                = useMyGameStatus(gameId);
 
   // ── Write hooks ───────────────────────────────────────────────────────────
+  const joinGame   = useJoinGame(gameId);
   const startRound = useStartRound(gameId);
 
   // ── Real-time events ──────────────────────────────────────────────────────
@@ -290,14 +292,33 @@ export default function LobbyPage() {
           </div>
         </div>
 
-        {/* ── Player count info ────────────────────────────────────────────── */}
-        <div className="card p-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <UserGroupIcon size={16} className="text-[#9B9B9B]" />
-            <span className="text-sm text-[#9B9B9B]">Up to 2 players</span>
+        {/* ── Player count progress bar ────────────────────────────────────── */}
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UserGroupIcon size={16} className="text-[#9B9B9B]" />
+              <span className="text-sm text-[#9B9B9B]">Players</span>
+            </div>
+            <span className="text-sm font-medium text-white">
+              {playerCount}<span className="text-[#9B9B9B]">/2</span>
+            </span>
           </div>
+
+          <div className="flex gap-1">
+            {Array.from({ length: 2 }, (_, i) => (
+              <motion.div
+                key={i}
+                className="h-1.5 flex-1 rounded-full"
+                animate={{ backgroundColor: i < playerCount ? "#008751" : "#2D2D2D" }}
+                transition={{ duration: 0.3 }}
+              />
+            ))}
+          </div>
+
           <p className="text-xs text-[#9B9B9B]">
-            Players don't need to register here — they'll be added automatically when they submit answers in the round.
+            {isFull
+              ? "Both players are in. Waiting for admin to start…"
+              : `Waiting for ${2 - playerCount} more player${2 - playerCount !== 1 ? "s" : ""}…`}
           </p>
         </div>
 
@@ -318,13 +339,41 @@ export default function LobbyPage() {
           )}
         </AnimatePresence>
 
-        {/* ── Join info ───────────────────────────────────────────────────── */}
-        {isConnected && !isAdmin && (
+        {/* ── Join / already in game ───────────────────────────────────────── */}
+        {isConnected && !isAdmin && !isPlayer && !isFull && (
+          <div className="space-y-2">
+            <button
+              onClick={() => joinGame.execute()}
+              disabled={joinGame.isPending || joinGame.isConfirming}
+              className="btn-primary w-full"
+            >
+              {joinGame.isPending ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Confirm in wallet…
+                </>
+              ) : joinGame.isConfirming ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Joining…
+                </>
+              ) : (
+                <>
+                  Join Game
+                  <ArrowRight01Icon size={16} />
+                </>
+              )}
+            </button>
+            {joinGame.error && (
+              <p className="text-xs text-[#E03E3E] px-1">{joinGame.error}</p>
+            )}
+          </div>
+        )}
+
+        {isConnected && !isAdmin && isPlayer && (
           <div className="flex items-center gap-2 px-4 py-3 card text-sm">
-            <InformationCircleIcon size={16} className="text-[#DFAB01] shrink-0" />
-            <span className="text-[#9B9B9B]">
-              No need to join — just submit your answers when the round starts and you'll be registered automatically.
-            </span>
+            <Tick01Icon size={16} className="text-[#008751] shrink-0" />
+            <span className="text-[#9B9B9B]">You're in! Waiting for the admin to start.</span>
           </div>
         )}
 

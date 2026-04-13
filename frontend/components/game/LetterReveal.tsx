@@ -269,21 +269,6 @@ export default function LetterReveal({
         )
       )}
 
-      {/* ── Tap to skip (mobile UX) ──────────────────────────────────────── */}
-      <motion.button
-        className="absolute bottom-8 left-0 right-0 text-center text-xs text-[#9B9B9B]/40 select-none"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.8 }}
-        onClick={() => {
-          if (!doneRef.current) {
-            doneRef.current = true;
-            onComplete();
-          }
-        }}
-      >
-        tap to skip
-      </motion.button>
     </motion.div>
   );
 }
