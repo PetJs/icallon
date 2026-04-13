@@ -26,7 +26,7 @@
  * while the UI plays it out.
  */
 
-import { motion, AnimatePresence, useAnimation } from "framer-motion";
+import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { roundLabel } from "@/lib/utils";
 
@@ -87,23 +87,26 @@ export default function LetterReveal({
 }: LetterRevealProps) {
   const [showParticles, setShowParticles] = useState(false);
   const [phase, setPhase]                 = useState<"in" | "hold" | "out">("in");
-  const doneRef = useRef(false);
+  const doneRef       = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  // Keep ref current without re-running the timer effect
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
   useEffect(() => {
+    // Empty deps — run once on mount. onCompleteRef always points to latest callback.
     if (doneRef.current) return;
 
-    // Sequence timers
-    const t1 = setTimeout(() => setShowParticles(true),  1000); // particles at letter slam
-    const t2 = setTimeout(() => setPhase("out"),          3000); // start exit
+    const t1 = setTimeout(() => setShowParticles(true),  1000);
+    const t2 = setTimeout(() => setPhase("out"),          3000);
     const t3 = setTimeout(() => {
       if (!doneRef.current) {
         doneRef.current = true;
-        onComplete();
+        onCompleteRef.current();
       }
-    }, 3600); // call parent after fade-out completes
+    }, 3600);
 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [onComplete]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Glow colours cycle through Nigerian flag: green → white → green
   const glowColor = "#008751";
