@@ -15,7 +15,7 @@ import {
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { AnimatePresence, motion } from "framer-motion";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 
 import FlagButton from "@/components/game/FlagButton";
@@ -204,6 +204,23 @@ export default function ResultsPage() {
   const scoreRound   = useScoreRound(gameId);
   const startRound   = useStartRound(gameId);
 
+  // ── Prize from GameComplete event (game.prizePool is 0 after _crownWinner) ──
+  // We persist to localStorage so the value survives page refreshes.
+  const prizeKey = `icallon_prize_${gameId}`;
+  const [wonPrize, setWonPrize] = useState<bigint>(() => {
+    if (typeof window === "undefined") return 0n;
+    const val = localStorage.getItem(`icallon_prize_${gameId}`);
+    return val ? BigInt(val) : 0n;
+  });
+  // Re-read on mount (handles server-side render / hydration)
+  const didLoadPrize = useRef(false);
+  useEffect(() => {
+    if (didLoadPrize.current) return;
+    didLoadPrize.current = true;
+    const val = localStorage.getItem(prizeKey);
+    if (val) setWonPrize(BigInt(val));
+  }, [prizeKey]);
+
   // ── Live flag updates ─────────────────────────────────────────────────────
   const [flagBump, setFlagBump] = useState(0); // trigger re-render on flag event
 
@@ -229,9 +246,13 @@ export default function ResultsPage() {
     refetchPlayers();
   }, [refetchGame, refetchPlayers]));
 
-  useOnGameComplete(gameId, useCallback(() => {
+  useOnGameComplete(gameId, useCallback((event) => {
+    // Persist prize so it survives refreshes — game.prizePool is 0 after transfer
+    const prizeStr = event.prize.toString();
+    localStorage.setItem(prizeKey, prizeStr);
+    setWonPrize(event.prize);
     refetchGame();
-  }, [refetchGame]));
+  }, [prizeKey, refetchGame]));
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const activeCount = activePlayers.length;
@@ -289,7 +310,7 @@ export default function ResultsPage() {
         {isComplete && game.winner && (
           <WinnerCard
             winner={game.winner}
-            prize={game.prizePool > 0n ? game.prizePool : 0n}
+            prize={wonPrize}
             isYou={isMyWin}
           />
         )}
@@ -561,6 +582,7 @@ export default function ResultsPage() {
             gameId={gameId}
             myAddress={address}
             showRoundScore={!isComplete}
+            winner={isComplete ? game.winner ?? undefined : undefined}
           />
         </section>
 
